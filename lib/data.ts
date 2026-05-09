@@ -52,7 +52,7 @@ export interface SocialLink {
 export const personalData: PersonalData = {
   name: {
     first: "Hakim",
-    last: "Razak",
+    last: " Razak",
   },
   title: "Software Developer | Tech Enthusiast",
   bio: "Hey! I'm Hakim, a Computer Science student at IIUM, Malaysia   with a passion for building innovative web applications. I specialize in modern web technologies, scalable architecture, and crafting intuitive digital experiences. With a strong foundation in both frontend and backend development, I enjoy creating solutions that not only meet user needs but also push the boundaries of what's possible on the web.",
