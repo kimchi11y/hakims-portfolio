@@ -77,44 +77,14 @@ export const projectsData: Project[] = [
 export const experienceData: Experience[] = [
   {
     id: 1,
-    company: "Tech Innovations Inc.",
-    role: "Senior Full Stack Developer",
-    type: "Full-time",
+    company: "Motion-U Club",
+    role: "Technical Operations Officer",
+    type: "Club-Member",
     date: "Jan 2022 → Present",
-    location: "Remote (San Francisco)",
-    logo: "/company1.svg", // Add company logos to public folder
+    location: "KICT, IIUM",
+    logo: "../public/motionu.png", // Add company logos to public folder
     bullets: [
-      "Led development of microservices architecture serving 100K+ daily users",
-      "Built and maintained design system used across 5 product teams",
-      "Reduced API response time by 60% through optimization efforts",
-    ],
-  },
-  {
-    id: 2,
-    company: "Digital Solutions Co.",
-    role: "Full Stack Developer",
-    type: "Full-time",
-    date: "Jun 2019 → Dec 2021",
-    location: "New York, NY",
-    logo: "/company2.svg",
-    bullets: [
-      "Developed full-stack features for client projects using React and Node.js",
-      "Implemented CI/CD pipelines reducing deployment time by 50%",
-      "Mentored junior developers and conducted code reviews",
-    ],
-  },
-  {
-    id: 3,
-    company: "Startup Labs",
-    role: "Frontend Developer",
-    type: "Contract",
-    date: "Jan 2018 → May 2019",
-    location: "Remote",
-    logo: "/company3.svg",
-    bullets: [
-      "Built responsive web applications from wireframes to production",
-      "Collaborated with designers to implement pixel-perfect UIs",
-      "Integrated third-party APIs and payment gateways",
+      "Led tech programs and workshops, educating students on web development and programming fundamentals",
     ],
   },
 ];
@@ -128,17 +98,17 @@ export const skillsData: Skill[] = [
   {
     number: "02",
     title: "Modern Frameworks",
-    description: "Expert in React, Next.js, Vue.js, and Node.js. I stay current with the latest technologies and best practices to deliver modern solutions.",
+    description: "Expert in React, Next.js, Sveltekit,  Vue.js, and Node.js. I stay current with the latest technologies and best practices to deliver modern solutions.",
   },
   {
     number: "03",
     title: "Database & APIs",
-    description: "Experience with SQL and NoSQL databases, RESTful and GraphQL APIs. I design scalable data architectures that grow with your needs.",
+    description: "Experience with SQL and NoSQL databases, RESTful APIs. I design scalable data architectures that grow with your needs.",
   },
   {
     number: "04",
     title: "Cloud & DevOps",
-    description: "Familiar with AWS, Docker, and CI/CD pipelines. I understand deployment workflows and can help automate your development process.",
+    description: "Familiar with Digital Ocean, Docker, and CI/CD pipelines. I understand deployment workflows and can help automate your development process.",
   },
 ];
 
