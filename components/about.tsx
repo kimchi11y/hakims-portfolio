@@ -8,8 +8,6 @@ export function About() {
         <p>
           I'm a Full Stack Developer with a passion for building modern web applications.
           I focus on creating scalable, user-friendly solutions that solve real problems.
-          Recently, I've been working on projects ranging from e-commerce platforms to
-          real-time collaboration tools.
         </p>
         <ul className="list-disc list-outside pl-5 space-y-2">
           <li>

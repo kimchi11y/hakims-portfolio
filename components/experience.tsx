@@ -8,7 +8,7 @@ export function Experience() {
 
   return (
     <section className="py-12">
-      <h2 className="text-2xl font-bold tracking-tight mb-8">Experience</h2>
+      <h2 className="text-2xl md:text-4xl font-bold tracking-tight mb-8">Experience</h2>
       <div className="relative">
         {/* Timeline line */}
         <div className="absolute left-[17px] top-[36px] bottom-4 w-px bg-[var(--border)]" />
