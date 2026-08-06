@@ -8,7 +8,7 @@ export function Projects() {
   const [expandedProject, setExpandedProject] = useState<number | null>(null);
 
   return (
-    <section id="projects" className="py-12">
+    <section id="projects" className="py-12 scroll-mt-24">
       <h2 className="text-2xl md:text-4xl font-bold tracking-tight mb-8">My Work</h2>
       <div className="space-y-6">
         {projectsData.map((project, index) => (
