@@ -6,6 +6,7 @@ import { personalData } from "@/lib/data";
 const navLinks = [
   { label: "Work", href: "#projects" },
   { label: "Experience", href: "#experience" },
+  { label: "Blog", href: "/blog" },
   { label: "About", href: "#about" },
 ];
 
