@@ -11,13 +11,13 @@ export default function Home() {
     <>
       <Navigation />
       <Hero />
-      <div className="section-divider" />
+      <hr className="my-8 border-[var(--border)]" />
       <Projects />
-      <div className="section-divider" />
+      <hr className="my-8 border-[var(--border)]" />
       <Experience />
-      <div className="section-divider" />
+      <hr className="my-8 border-[var(--border)]" />
       <Skills />
-      <div className="section-divider" />
+      <hr className="my-8 border-[var(--border)]" />
       <About />
       <Footer />
     </>

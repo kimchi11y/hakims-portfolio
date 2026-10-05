@@ -1,22 +1,86 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Custom variants
+   --------------------------------------------------------------------------- */
+
+/* Touch devices fire :hover on tap — only move things for real pointers. */
+@custom-variant hoverable {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   --------------------------------------------------------------------------- */
+
 :root {
+  color-scheme: light;
+
   --background: #ffffff;
   --foreground: #171717;
-  --card-bg: #f4f4f5;
+
+  --surface-sunken: #f4f4f5;
+  --surface-hover: #e9e9ec;
+  --surface-raised: #fafafa;
+
   --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --highlight: rgba(255, 255, 255, 0.7);
+  --dot: rgba(0, 0, 0, 0.08);
+
   --text-dimmed: #525252;
   --text-muted: #737373;
+
+  /* Motion — values from the audit catalog, never approximated. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --dur-press: 140ms;
+  --dur-pop: 180ms;
+  --dur-panel: 260ms;
+  --dur-reveal: 300ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --background: #0a0a0b;
+    --foreground: #ededed;
+
+    --surface-sunken: #17171a;
+    --surface-hover: #1f1f23;
+    --surface-raised: #131316;
+
+    --border: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --highlight: rgba(255, 255, 255, 0.06);
+    --dot: rgba(255, 255, 255, 0.055);
+
+    --text-dimmed: #a1a1aa;
+    --text-muted: #71717a;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card-bg: var(--card-bg);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-raised: var(--surface-raised);
   --color-border: var(--border);
   --color-text-dimmed: var(--text-dimmed);
   --color-text-muted: var(--text-muted);
 }
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
 
 * {
   box-sizing: border-box;
@@ -24,43 +88,207 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "cv11" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
-/* Section divider */
-.section-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 2rem 0;
+::selection {
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
 }
 
-/* Animation classes */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion utilities
+   --------------------------------------------------------------------------- */
+
+/* Press feedback + colour changes. Override the scale with `--press-scale`.
+   Colour properties live here rather than in `.t-color` so that a single
+   `transition` shorthand owns the property list — two competing classes both
+   setting `transition-property` silently drop one of the transitions. */
+.t-press {
+  --press-scale: 0.97;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    color var(--dur-pop) ease,
+    background-color var(--dur-pop) ease,
+    border-color var(--dur-pop) ease,
+    opacity var(--dur-pop) ease;
+}
+
+.t-press:active {
+  transform: scale(var(--press-scale));
+}
+
+/* Modifiers must be declared after `.t-press`: these are unlayered, and
+   Tailwind's layered `[--press-scale:…]` utilities lose to it. */
+.press-subtle {
+  --press-scale: 0.985;
+}
+
+.press-tiny {
+  --press-scale: 0.9;
+}
+
+/* Hover / colour changes — `ease`, per the easing decision order. */
+.t-color {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: var(--dur-pop);
+  transition-timing-function: ease;
+}
+
+/* Dropdowns, menus, popovers: opacity + transform only, strong ease-out. */
+.t-panel {
+  /* Tailwind v4 sets `scale`/`translate` as standalone properties, so
+     `transform` alone would leave the scale-in snapping into place. */
+  transition-property: opacity, translate, scale, visibility;
+  transition-duration: var(--dur-pop);
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+/* Image zoom inside a hovered card. */
+.t-zoom {
+  transition: transform 400ms var(--ease-out);
+}
+
+.card-arrow {
+  transition: transform 300ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .t-zoom {
+    transform: scale(1.03);
   }
-  to {
+
+  .card:hover .card-arrow {
+    transform: translate(2px, -2px);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Scroll reveal
+   Base state is hidden; `.reveal[data-revealed]` is set by <Reveal />.
+   `<noscript>` in the layout restores visibility when JS never runs.
+   --------------------------------------------------------------------------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity var(--dur-reveal) var(--ease-out),
+    transform var(--dur-reveal) var(--ease-out);
+}
+
+.reveal[data-revealed] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Image wipe, driven by the nearest `.reveal` ancestor's state. */
+.reveal .reveal-clip {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 650ms var(--ease-in-out) 100ms;
+}
+
+.reveal[data-revealed] .reveal-clip {
+  clip-path: inset(0 0 0 0);
+}
+
+/* ---------------------------------------------------------------------------
+   Code blocks
+   --------------------------------------------------------------------------- */
+
+.code-block {
+  position: relative;
+}
+
+.code-copy {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-dimmed);
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0;
+  transition:
+    opacity var(--dur-pop) ease,
+    color var(--dur-pop) ease,
+    transform var(--dur-press) var(--ease-out);
+}
+
+.code-block:hover .code-copy,
+.code-copy:focus-visible {
+  opacity: 1;
+}
+
+.code-copy:active {
+  transform: scale(0.94);
+}
+
+@media (hover: none) {
+  .code-copy {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out forwards;
+/* Shiki dual themes: token colours come from the spans, surface from our tokens. */
+code[data-theme*=" "] span {
+  color: var(--shiki-light);
 }
 
-.animation-delay-100 { animation-delay: 0.1s; }
-.animation-delay-200 { animation-delay: 0.2s; }
-.animation-delay-300 { animation-delay: 0.3s; }
-.animation-delay-400 { animation-delay: 0.4s; }
-.animation-delay-500 { animation-delay: 0.5s; }
+@media (prefers-color-scheme: dark) {
+  code[data-theme*=" "] span {
+    color: var(--shiki-dark);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion — fewer and gentler, never zero. Movement is dropped;
+   opacity and colour transitions that aid comprehension are kept.
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .reveal {
+    transform: none;
+    transition-property: opacity;
+    transition-duration: 200ms;
+    transition-delay: 0ms !important;
+  }
+
+  .reveal .reveal-clip,
+  .reveal[data-revealed] .reveal-clip {
+    clip-path: none;
+    transition: none;
+  }
+
+  .t-press:active,
+  .card:hover .card-arrow,
+  .card:hover .t-zoom {
+    transform: none;
+  }
+}

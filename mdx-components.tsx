@@ -1,4 +1,5 @@
 import type { MDXComponents } from "mdx/types";
+import { CodeBlock } from "./components/code-block";
 
 const components: MDXComponents = {
   h1: ({ children }) => (
@@ -25,7 +26,7 @@ const components: MDXComponents = {
   a: ({ children, href }) => (
     <a
       href={href}
-      className="text-[var(--foreground)] underline underline-offset-4 decoration-[var(--text-muted)] hover:decoration-[var(--foreground)] transition-colors"
+      className="text-[var(--foreground)] underline underline-offset-4 decoration-[var(--text-muted)] hoverable:decoration-[var(--foreground)] t-color"
     >
       {children}
     </a>
@@ -52,13 +53,13 @@ const components: MDXComponents = {
   ),
   hr: () => <hr className="my-8 border-[var(--border)]" />,
   pre: ({ children, style, ...props }) => (
-    <pre
+    <CodeBlock
       {...props}
-      style={{ ...style, backgroundColor: undefined }}
-      className="bg-zinc-100 rounded-2xl overflow-x-auto p-4 my-6 text-[13px] leading-relaxed font-mono border border-[var(--border)]"
+      style={{ ...style, backgroundColor: undefined, color: undefined }}
+      className="bg-[var(--surface-sunken)] rounded-2xl overflow-x-auto p-4 my-6 text-[13px] leading-relaxed font-mono border border-[var(--border)]"
     >
       {children}
-    </pre>
+    </CodeBlock>
   ),
   code: ({ children, className, ...props }) => {
     const isBlock =
@@ -72,7 +73,7 @@ const components: MDXComponents = {
       );
     }
     return (
-      <code className="rounded-md bg-zinc-200/80 px-1.5 py-0.5 text-[0.875em] font-mono text-[var(--foreground)]">
+      <code className="rounded-md bg-[var(--surface-hover)] px-1.5 py-0.5 text-[0.875em] font-mono text-[var(--foreground)]">
         {children}
       </code>
     );
