@@ -1,6 +1,5 @@
 // Portfolio Data - Update these values with your own information
-import Image from "next/image";
-// TypeScript Interfaces for type safety
+
 interface PersonalName {
   first: string;
   last: string;
@@ -13,7 +12,6 @@ export interface PersonalData {
   shortBio: string;
   email: string;
   location: string;
-  avatar: string;
 }
 
 export interface Project {
@@ -23,17 +21,15 @@ export interface Project {
   link: string;
   images: string[];
   tags: string[];
-  featured: boolean;
 }
 
-export interface Experience {
+export interface ExperienceEntry {
   id: number;
   company: string;
   role: string;
   type: string;
   date: string;
   location: string;
-  logo: string;
   bullets: string[];
 }
 
@@ -52,14 +48,13 @@ export interface SocialLink {
 export const personalData: PersonalData = {
   name: {
     first: "Hakim",
-    last: " Razak",
+    last: "Razak",
   },
   title: "Software Developer | Tech Enthusiast",
   bio: "Hey! I'm Hakim, a Computer Science student at IIUM, Malaysia   with a passion for building innovative web applications. I specialize in modern web technologies, scalable architecture, and crafting intuitive digital experiences. With a strong foundation in both frontend and backend development, I enjoy creating solutions that not only meet user needs but also push the boundaries of what's possible on the web.",
   shortBio: "Full Stack Developer specializing in modern web technologies, scalable architecture, and crafting intuitive digital experiences.",
   email: "hakim.doe@example.com",
   location: "Kuala Lumpur, Malaysia",
-  avatar: "/avatar.jpg", // Add your avatar image to public folder
 };
 
 export const projectsData: Project[] = [
@@ -68,13 +63,12 @@ export const projectsData: Project[] = [
     title: "EIT, Engineering Industrial Training",
     description: "Full-stack web application for managing engineering industrial training programs. Built with Sveltekit, TypeScript, and MySql. Features include student registration, company management, and real-time notifications.",
     link: "https://eit-five.vercel.app",
-    images: ["/eit.png"], // Add your project images to public folder
+    images: ["/eit.png"],
     tags: ["Sveltekit", "TypeScript", "drizzle-orm", "MySql"],
-    featured: true,
-  }
+  },
 ];
 
-export const experienceData: Experience[] = [
+export const experienceData: ExperienceEntry[] = [
   {
     id: 1,
     company: "Motion-U Club",
@@ -82,7 +76,6 @@ export const experienceData: Experience[] = [
     type: "Club-Member",
     date: "Jan 2022 → Present",
     location: "KICT, IIUM",
-    logo: "../public/motionu.png", // Add company logos to public folder
     bullets: [
       "Led tech programs and workshops, educating students on web development and programming fundamentals",
     ],

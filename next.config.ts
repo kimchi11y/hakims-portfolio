@@ -8,7 +8,12 @@ const nextConfig: NextConfig = {
 const withMDX = createMDX({
   options: {
     remarkPlugins: ["remark-gfm"],
-    rehypePlugins: [["rehype-pretty-code", { theme: "github-light" }]],
+    rehypePlugins: [
+      [
+        "rehype-pretty-code",
+        { theme: { light: "github-light", dark: "github-dark" } },
+      ],
+    ],
   },
 });
 
