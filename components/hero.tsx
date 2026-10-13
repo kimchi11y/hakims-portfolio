@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Starfield } from "@/components/starfield";
 import { personalData } from "@/lib/data";
 import { Reveal } from "./reveal";
 
@@ -8,19 +9,8 @@ export function Hero() {
       {/* Banner + avatar */}
       <Reveal>
         <div className="relative">
-          <div
-            className="w-full h-[240px] md:h-[286px] rounded-2xl overflow-hidden relative"
-            style={{
-              backgroundImage:
-                "linear-gradient(135deg, var(--surface-sunken), color-mix(in oklab, #f43f5e 20%, var(--surface-sunken)))",
-            }}
-          >
-            {/* Subtle gradient overlay */}
-            <div className="absolute inset-0 opacity-60">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_50%_at_20%_40%,rgba(120,40,180,0.10)_0%,transparent_70%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_35%_45%_at_75%_30%,rgba(40,140,220,0.08)_0%,transparent_70%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_30%_40%_at_50%_70%,rgba(200,60,140,0.07)_0%,transparent_70%)]" />
-            </div>
+          <div className="w-full h-[180px] sm:h-[240px] md:h-[286px] rounded-2xl overflow-hidden relative bg-background">
+            <Starfield className="absolute inset-0" />
           </div>
 
           {/* Monogram avatar */}
