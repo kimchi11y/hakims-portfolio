@@ -1,0 +1,113 @@
+A homelab is one of the best hands-on ways to learn modern infrastructure without a corporate network. This is mine — the hardware, the services I run, the mistakes I made, and what running it day-to-day taught me about Linux, containers, and security.
+
+## Why I run a homelab
+
+I like understanding the full stack — not just writing code, but shipping and operating it too. A homelab gives me a chunk of real hardware and a real network where I can:
+
+- run services for my family and friends (Minecraft servers, personal tools),
+- learn Docker, orchestration, and networking by actually doing it,
+- keep my own data on my own hardware instead of a big cloud provider,
+- and experiment freely — if I break something, it's my own box and nobody else is affected.
+
+It's also cheap. Everything runs on one machine I already had, and almost all the software is open source.
+
+## The hardware
+
+The whole lab runs on my old Acer Aspire 5 laptop that is repurposed as a home server (`hakim-acer-server`):
+
+- **OS:** Ubuntu 26.04 LTS
+- **CPU:** 8 cores
+- **RAM:** 14 GB
+- **Disk:** 98 GB SSD, running as an LVM volume
+
+Nothing fancy. You don't need a rack full of gear to start a homelab — one decent machine that you can leave on is enough. It pulls surprisingly little power and sits out of the way at home.
+
+## The network: Tailscale
+
+The first problem: my services live at home, but I work on them from my MacBook and sometimes my phone, and I want my friends to play on the Minecraft servers.
+
+The clean solution is [Tailscale](https://tailscale.com/) — a zero-config mesh VPN built on WireGuard. Every one of my devices joins a private "tailnet":
+
+- the server: `100.92.212.47`
+- my MacBook: `100.81.155.37`
+- my iPhone: `100.91.45.53`
+
+Because it's built on WireGuard, the latency overhead is tiny, and there are no open ports required on my home router. I can reach any of my machines from any of the others as if they were on the same local network — from anywhere in the world.
+
+## The services
+
+Everything runs in Docker containers, managed with `docker compose`. A single compose file per project defines the image, ports, and storage — the whole stack is reproducible and easy to tear down and rebuild.
+
+### 1. Crafty — Minecraft controller
+
+[Crafty Controller](https://craftycontrol.com/) is an open-source web dashboard for managing Minecraft servers. With it I run **several modded servers** for my friends and I — Java and Bedrock editions — all from a browser UI:
+
+- Web UI: ports `8443` and `8123` (HTTPS)
+- Java MC servers: `25500–25600`
+- Bedrock: `19132` (UDP)
+
+Instead of manually wrangling server processes and config files over SSH, Crafty gives me start/stop controls, logs, and webhooks in one place.
+
+### 2. Dashboard — my personal finance dashboard
+
+The project I'm proudest of: a custom [Next.js](https://nextjs.org/) (App Router + TypeScript) dashboard that logs my spending from chat messages. I can type something like *"bought nasi ayam RM7"* and it gets recorded into the dashboard, which tracks my expenses over time.
+
+- **Stack:** Next.js App Router, TypeScript, Tailwind v4, shadcn/ui, SQLite
+- **Data:** stored in a SQLite file bind-mounted into the container so it survives rebuilds
+- **API:** exposes a health endpoint that the rest of my infrastructure can check
+- **Deployment:** Docker, published only on my Tailscale network (port `3240`)
+
+This is an end-to-end project for me: it's designed in one repo, deployed with Docker, and I run it in production on my own hardware.
+
+### 3. Hermes — my AI agent on the server
+
+Hermes is an AI agent from [Nous Research](https://nousresearch.com/) that lives on my server and works the way I do. It runs on an open-weight model served through [OpenCode Go](https://opencode.com/) (`deepseek-v4.1-flash`), so it's capable and still cheap — it fits my budget for open-source tools.
+
+What makes it genuinely useful to me is that it's **part of the lab, not just a chat box**:
+
+- It has a persistent **memory** of my setup — my services, my ports, how my network binds ports, what's crashed before. So when something breaks, it doesn't ask me "what's your homelab?" it already knows.
+- It **operates the infrastructure** through the terminal and Docker — it can check a container, read logs, and diagnose a crash.
+- It writes **procedural skills**: once we figure out a fix (like the Tailscale bind race), it records the workflow so the same problem is solved instantly next time — not re-diagnosed from scratch.
+- I talk to it over **Telegram** from my phone or laptop. I can say something like *"bought nasi ayam RM7"* and it turns that into a record in my dashboard — which is exactly how that finance dashboard got going.
+- It can read documents (my PDFs and receipts via OCR), browse the web, write files, and even generate images and diagrams.
+
+It's the piece of the lab that makes everything else feel *alive* — a self-contained way to see what a capable open-source model does when it's given real tools and a real machine to act on, instead of just generating text. And yes, a big part of this blog post was written and fact-checked by it directly on the server.
+
+### 4. Network experiments
+
+I keep a dedicated container for testing network/binding concepts — for example, demonstrating how a service bound to `127.0.0.1` is reachable locally but not over the VPN, versus one bound to the Tailscale IP. It's a handy sandbox for learning without touching my real services.
+
+### Retired: Pi-hole
+
+I used to run [Pi-hole](https://pi-hole.net/) — a network-wide ad blocker. I've since retired it from the stack, which is the nice part of containerized infrastructure: nothing says a service has to run forever. Turning one off is just `docker compose down`.
+
+## Security posture: private by default
+
+The most deliberate decision in the whole setup is **how services are exposed to the network**.
+
+Rather than publishing my dashboard on the public internet, its port is bound **only to my Tailscale IP** (`100.92.212.47:3240`). That means:
+
+- it's reachable from any of my devices over the encrypted VPN,
+- but it is **not** reachable from the public internet — no open firewall, no exposed admin panels, no bot scanners brute-forcing the login page.
+
+My Tailscale-bound Minecraft admin UI stays private too; only the wiring I actually need is exposed.
+
+This "minimum exposure" mindset is one I'd carry into any professional infrastructure role: **your default should be locked down, and every open port should be a deliberate, justified choice.**
+
+## What I learned (and what broke)
+
+Running real infrastructure means things break faster than any tutorial shows you. Two lessons stand out:
+
+**1. The Tailscale bind race.** My dashboard is bound to the Tailscale IP. If Docker starts the container **before** the Tailscale interface has come up (which happens on boot or when the VPN reconnects), the port can't be bound and the container crashes with a cryptic error, even though the app itself is perfectly healthy.
+
+The root cause is *sequencing*, not the app — the network isn't ready when the container wants to bind. The fix: restart the container once Tailscale is up. Understanding that the error pointed at the *bind*, not the *application*, saved me hours of chasing a bug in code that was never broken.
+
+**2. One lesson per service.** Containers isolate not just processes but *responsibility*. When I fire up a service to test a networking idea and leave it running "just in case", it turns into confusion later — a container that looks like your real service but serves nothing. Clean up what you're not actively running.
+
+I also learned the value of **verifiable health checks** — an HTTP endpoint your monitoring can actually hit — rather than trusting that "the container is running" equals "the service works."
+
+If you're a student or junior engineer, I'd genuinely recommend starting a homelab. It's one of the highest-leverage things I've done for my own learning, and you can start with nothing more than an old laptop and a free-tailnet Tailscale account.
+
+---
+
+*All the services in this lab — Crafty, Tailscale, Docker, Next.js — are open source or have generous free tiers. You don't need a big budget to learn real infrastructure.*
