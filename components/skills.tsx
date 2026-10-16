@@ -5,7 +5,7 @@ export function Skills() {
   return (
     <section className="py-12">
       <h2 className="text-2xl font-bold tracking-tight mb-10">
-        What I Do Best
+        Technical Skills
       </h2>
       <div className="space-y-6">
         {skillsData.map((skill, index) => (

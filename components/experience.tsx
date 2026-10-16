@@ -76,8 +76,12 @@ function ExperienceRow({ entry, isExpanded, onToggle }: ExperienceRowProps) {
                 <span>{entry.type}</span>
                 <span className="w-px h-4 bg-[var(--border)]" />
                 <span>{entry.date}</span>
-                <span className="w-px h-4 bg-[var(--border)]" />
-                <span>{entry.location}</span>
+                {entry.location ? (
+                  <>
+                    <span className="w-px h-4 bg-[var(--border)]" />
+                    <span>{entry.location}</span>
+                  </>
+                ) : null}
               </span>
             </span>
             <svg

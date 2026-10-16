@@ -10,6 +10,11 @@ const inter = Inter({
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://hakimrazak.com";
 
+const siteTitle =
+  "Hakim Razak — Computer Science Student | Software Engineer Intern Candidate";
+const siteDescription =
+  "Computer Science student at International Islamic University Malaysia seeking a six-month software engineering internship (February – August 2027). Builds full-stack web applications with React, Next.js, ASP.NET Core and SvelteKit, deployed with Docker and GitHub Actions.";
+
 /** Parse the canonical site URL, falling back to relative metadata on bad input. */
 function resolveSiteUrl(): URL | undefined {
   try {
@@ -21,24 +26,33 @@ function resolveSiteUrl(): URL | undefined {
 
 export const metadata: Metadata = {
   metadataBase: resolveSiteUrl(),
-  title: "Hakim Razak - Software Developer",
-  description: "Software Developer specializing in modern web technologies, scalable architecture, and crafting intuitive digital experiences.",
-  keywords: ["Software Developer", "Web Developer", "React", "Next.js", "TypeScript"],
+  title: siteTitle,
+  description: siteDescription,
+  keywords: [
+    "Software Engineer Intern",
+    "Full Stack Developer",
+    "Computer Science Student",
+    "React",
+    "Next.js",
+    "TypeScript",
+    "ASP.NET Core",
+    "SvelteKit",
+  ],
   authors: [{ name: "Hakim Razak" }],
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "Hakim Razak - Software Developer",
-    description: "Software Developer specializing in modern web technologies, scalable architecture, and crafting intuitive digital experiences.",
+    title: siteTitle,
+    description: siteDescription,
     url: "/",
     siteName: "Hakim Razak",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hakim Razak - Software Developer",
-    description: "Software Developer specializing in modern web technologies, scalable architecture, and crafting intuitive digital experiences.",
+    title: siteTitle,
+    description: siteDescription,
   },
 };
 

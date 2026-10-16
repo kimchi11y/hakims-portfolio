@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Starfield } from "@/components/starfield";
 import { personalData } from "@/lib/data";
+import { ResumeLink, ResumeDownloadLink } from "./resume-link";
 import { Reveal } from "./reveal";
 
 export function Hero() {
@@ -37,7 +38,12 @@ export function Hero() {
       <Reveal delay={120}>
         <p className="mt-6 text-lg text-[var(--text-dimmed)] leading-relaxed max-w-[660px]">
           Hey, I&apos;m {personalData.name.first} {personalData.name.last}, a
-          Computer Science student from{" "}
+          Computer Science student at{" "}
+          <span className="font-semibold text-[var(--foreground)]">
+            International Islamic University Malaysia
+          </span>{" "}
+          building full-stack web applications. I&apos;m currently seeking a
+          six-month software engineering internship (February – August 2027) in{" "}
           <span className="inline-flex items-center gap-1">
             <span className="font-semibold text-[var(--foreground)]">
               Kuala Lumpur, Malaysia
@@ -50,14 +56,13 @@ export function Hero() {
               className="w-4 h-4 inline-block"
             />
           </span>
-          . I&apos;m passionate about software development and building full
-          stack web applications.{" "}
+          .
         </p>
       </Reveal>
 
       {/* CTA buttons */}
       <Reveal delay={180}>
-        <div className="flex items-center gap-1 mt-6">
+        <div className="flex flex-wrap items-center gap-1 mt-6">
           <a
             href="#projects"
             className="t-press flex items-center gap-1.5 px-3 py-2 bg-[var(--surface-sunken)] rounded-xl text-base font-medium text-[var(--text-dimmed)] hoverable:text-[var(--foreground)] hoverable:bg-[var(--surface-hover)]"
@@ -73,6 +78,8 @@ export function Hero() {
               <path d="M7 17L17 7M17 7H7M17 7v10" />
             </svg>
           </a>
+          <ResumeLink className="t-press flex items-center gap-1.5 px-3 py-2 bg-[var(--surface-sunken)] rounded-xl text-base font-medium text-[var(--text-dimmed)] hoverable:text-[var(--foreground)] hoverable:bg-[var(--surface-hover)]" />
+          <ResumeDownloadLink className="t-press flex items-center justify-center w-10 h-10 bg-[var(--surface-sunken)] rounded-xl text-[var(--text-dimmed)] hoverable:text-[var(--foreground)] hoverable:bg-[var(--surface-hover)]" />
           <a
             href={`mailto:${personalData.email}`}
             className="t-press flex items-center gap-1.5 px-3 py-2 bg-[var(--surface-sunken)] rounded-xl text-base font-medium text-[var(--text-dimmed)] hoverable:text-[var(--foreground)] hoverable:bg-[var(--surface-hover)]"
