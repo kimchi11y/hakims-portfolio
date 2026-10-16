@@ -3,6 +3,7 @@ import { Hero } from "@/components/hero";
 import { Projects } from "@/components/projects";
 import { Experience } from "@/components/experience";
 import { Skills } from "@/components/skills";
+import { BlogPreview } from "@/components/blog-preview";
 import { About } from "@/components/about";
 import { Footer } from "@/components/footer";
 
@@ -15,6 +16,8 @@ export default function Home() {
       <Projects />
       <hr className="my-8 border-[var(--border)]" />
       <Experience />
+      <hr className="my-8 border-[var(--border)]" />
+      <BlogPreview />
       <hr className="my-8 border-[var(--border)]" />
       <Skills />
       <hr className="my-8 border-[var(--border)]" />
