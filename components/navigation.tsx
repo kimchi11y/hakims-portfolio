@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { personalData } from "@/lib/data";
+import { ResumeLink } from "./resume-link";
 
 const navLinks = [
   { label: "Work", href: "#projects" },
@@ -18,6 +19,10 @@ const pillLinkClassName =
 
 const menuLinkClassName =
   "t-color px-3 py-2.5 rounded-xl text-base font-medium text-[var(--text-dimmed)] hoverable:text-[var(--foreground)] hoverable:bg-[var(--surface-sunken)]";
+
+// The icon is 16px so it does not push the pill past the text-only ones.
+const resumePillClassName = `${pillLinkClassName} inline-flex items-center gap-1.5`;
+const resumeMenuLinkClassName = `${menuLinkClassName} flex items-center gap-1.5`;
 
 export function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -84,6 +89,7 @@ export function Navigation() {
               {link.label}
             </Link>
           ))}
+          <ResumeLink className={resumePillClassName} iconClassName="w-4 h-4" />
           <a href={`mailto:${personalData.email}`} className={pillLinkClassName}>
             Contact
           </a>
@@ -131,6 +137,11 @@ export function Navigation() {
             {link.label}
           </Link>
         ))}
+        <ResumeLink
+          className={resumeMenuLinkClassName}
+          iconClassName="w-4 h-4"
+          onClick={() => setMenuOpen(false)}
+        />
         <a
           href={`mailto:${personalData.email}`}
           onClick={() => setMenuOpen(false)}
