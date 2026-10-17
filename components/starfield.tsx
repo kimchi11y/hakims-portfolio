@@ -75,7 +75,9 @@ export function Starfield({ className }: { className?: string }) {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    /* ── Palette comes from the CSS tokens, never hardcoded ── */
+    /* ── Palette comes from the CSS tokens, never hardcoded. The canvas paints
+       opaque pixels and caches sprites, so it has to be re-read when
+       `<html data-theme>` flips — the CSS variables alone won't repaint it. ── */
     const probe = document.createElement("span");
     probe.style.cssText = "position:absolute;visibility:hidden";
     host.appendChild(probe);
@@ -86,23 +88,32 @@ export function Starfield({ className }: { className?: string }) {
       probe.style[prop] = "";
       return parseColor(resolved, fallback);
     };
-    const dotRgb = readToken("--foreground", "color", [23, 23, 23]);
-    /* Glow and tails only pick up a hue if the palette declares an accent; otherwise the
-       field stays monochrome like the reference. */
-    const accentRgb = readToken("--accent", "color", dotRgb);
-    const bgRgb = readToken("--background", "backgroundColor", [255, 255, 255]);
-    probe.remove();
 
-    const bgFill = `rgb(${bgRgb[0]},${bgRgb[1]},${bgRgb[2]})`;
-    const dotFill = `rgb(${dotRgb[0]},${dotRgb[1]},${dotRgb[2]})`;
-    const dotTriplet = `${dotRgb[0]},${dotRgb[1]},${dotRgb[2]}`;
-    const accentTriplet = `${accentRgb[0]},${accentRgb[1]},${accentRgb[2]}`;
+    let bgFill = "";
+    let dotFill = "";
+    let dotTriplet = "";
+    let accentTriplet = "";
+    const levelFill: string[] = new Array<string>(ALPHA_LEVELS).fill("rgb(0,0,0)");
 
-    const levelFill: string[] = [];
-    for (let level = 0; level < ALPHA_LEVELS; level++) {
-      const alpha = ((level + 0.5) / ALPHA_LEVELS) * ALPHA_SPAN;
-      levelFill.push(`rgba(${dotTriplet},${alpha.toFixed(3)})`);
-    }
+    const readPalette = () => {
+      const dotRgb = readToken("--foreground", "color", [23, 23, 23]);
+      /* Glow and tails only pick up a hue if the palette declares an accent; otherwise the
+         field stays monochrome like the reference. */
+      const accentRgb = readToken("--accent", "color", dotRgb);
+      const bgRgb = readToken("--background", "backgroundColor", [255, 255, 255]);
+
+      bgFill = `rgb(${bgRgb[0]},${bgRgb[1]},${bgRgb[2]})`;
+      dotFill = `rgb(${dotRgb[0]},${dotRgb[1]},${dotRgb[2]})`;
+      dotTriplet = `${dotRgb[0]},${dotRgb[1]},${dotRgb[2]}`;
+      accentTriplet = `${accentRgb[0]},${accentRgb[1]},${accentRgb[2]}`;
+
+      for (let level = 0; level < ALPHA_LEVELS; level++) {
+        const alpha = ((level + 0.5) / ALPHA_LEVELS) * ALPHA_SPAN;
+        levelFill[level] = `rgba(${dotTriplet},${alpha.toFixed(3)})`;
+      }
+    };
+
+    readPalette();
 
     let dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     let star: HTMLCanvasElement | null = null;
@@ -562,6 +573,20 @@ export function Starfield({ className }: { className?: string }) {
     );
     intersectionObserver.observe(host);
 
+    /* The resolved theme lives on `<html data-theme>` (pre-paint script and the
+       toggle both write it), so observe that instead of coupling to either.
+       Sprites are rebuilt because they bake the palette in; the grid is reused
+       so the field does not visibly re-seed on a theme switch. */
+    const themeObserver = new MutationObserver(() => {
+      readPalette();
+      buildSprites();
+      sync();
+    });
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
     host.addEventListener("pointermove", onPointerMove);
     host.addEventListener("pointerleave", onPointerLeave);
     document.addEventListener("visibilitychange", onVisibility);
@@ -580,6 +605,8 @@ export function Starfield({ className }: { className?: string }) {
       cancelAnimationFrame(raf);
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
+      themeObserver.disconnect();
+      probe.remove();
       host.removeEventListener("pointermove", onPointerMove);
       host.removeEventListener("pointerleave", onPointerLeave);
       document.removeEventListener("visibilitychange", onVisibility);
