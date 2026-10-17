@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { personalData } from "@/lib/data";
 import { ResumeLink } from "./resume-link";
+import { ThemeToggle } from "./theme-toggle";
 
 const navLinks = [
   { label: "Work", href: "#projects" },
@@ -93,28 +94,32 @@ export function Navigation() {
           <a href={`mailto:${personalData.email}`} className={pillLinkClassName}>
             Contact
           </a>
+          <ThemeToggle className="ml-0.5" />
         </div>
 
-        {/* Mobile menu button */}
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-          aria-controls="mobile-menu"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          className="t-press md:hidden flex items-center justify-center w-10 h-10 rounded-xl text-[var(--text-dimmed)] hoverable:text-[var(--foreground)] hoverable:bg-[var(--surface-sunken)]"
-        >
-          {menuOpen ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          )}
-        </button>
+        {/* Mobile actions — theme stays reachable without opening the menu. */}
+        <div className="md:hidden flex items-center gap-1">
+          <ThemeToggle />
+          <button
+            ref={buttonRef}
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className="t-press flex items-center justify-center w-10 h-10 rounded-xl text-[var(--text-dimmed)] hoverable:text-[var(--foreground)] hoverable:bg-[var(--surface-sunken)]"
+          >
+            {menuOpen ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu panel — scales from its trigger, not from centre. */}

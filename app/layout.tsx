@@ -56,14 +56,31 @@ export const metadata: Metadata = {
   },
 };
 
+/** Must match `THEME_STORAGE_KEY` in components/theme-toggle.tsx. */
+const THEME_STORAGE_KEY = "theme";
+
+/** Runs before the first paint, so the chosen scheme is never flashed over.
+ *  Always writes `data-theme` (resolving the OS preference itself) — CSS reads
+ *  that attribute as the single source of truth. */
+const themeScript = `(function(){try{
+var m=window.matchMedia("(prefers-color-scheme: dark)"),el=document.documentElement;
+function stored(){try{var v=localStorage.getItem("${THEME_STORAGE_KEY}");return v==="dark"||v==="light"?v:null}catch(e){return null}}
+function apply(){el.dataset.theme=stored()||(m.matches?"dark":"light")}
+apply();
+m.addEventListener("change",function(){if(!stored())apply()});
+}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="min-h-screen flex flex-col antialiased">
+        {/* Theme before content: the parser reaches this synchronously, and the
+            first paint waits on the head stylesheet, so there is no flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {/* Reveal starts hidden so it can fade in without a flash. Restore it
             when JS never runs, otherwise the page would render blank. */}
         <noscript>

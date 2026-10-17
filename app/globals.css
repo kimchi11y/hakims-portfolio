@@ -17,23 +17,27 @@
    Design tokens
    --------------------------------------------------------------------------- */
 
+/* Every colour token takes both values in one place: `light-dark()` resolves
+   against the element's used `color-scheme`, so the palette never needs a
+   second copy behind a media query. `light dark` means "follow the OS" until
+   `<html data-theme>` (set pre-paint in the layout) overrides it. */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
 
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: light-dark(#ffffff, #0a0a0b);
+  --foreground: light-dark(#171717, #ededed);
 
-  --surface-sunken: #f4f4f5;
-  --surface-hover: #e9e9ec;
-  --surface-raised: #fafafa;
+  --surface-sunken: light-dark(#f4f4f5, #17171a);
+  --surface-hover: light-dark(#e9e9ec, #1f1f23);
+  --surface-raised: light-dark(#fafafa, #131316);
 
-  --border: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.14);
-  --highlight: rgba(255, 255, 255, 0.7);
-  --dot: rgba(0, 0, 0, 0.08);
+  --border: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.09));
+  --border-strong: light-dark(rgba(0, 0, 0, 0.14), rgba(255, 255, 255, 0.16));
+  --highlight: light-dark(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.06));
+  --dot: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.055));
 
-  --text-dimmed: #525252;
-  --text-muted: #737373;
+  --text-dimmed: light-dark(#525252, #a1a1aa);
+  --text-muted: light-dark(#737373, #71717a);
 
   /* Motion — values from the audit catalog, never approximated. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -46,25 +50,14 @@
   --dur-reveal: 300ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+/* An explicit choice beats the OS. Declared only here: a local `color-scheme`
+   on any other element would flip that subtree's `light-dark()` palette. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
 
-    --background: #0a0a0b;
-    --foreground: #ededed;
-
-    --surface-sunken: #17171a;
-    --surface-hover: #1f1f23;
-    --surface-raised: #131316;
-
-    --border: rgba(255, 255, 255, 0.09);
-    --border-strong: rgba(255, 255, 255, 0.16);
-    --highlight: rgba(255, 255, 255, 0.06);
-    --dot: rgba(255, 255, 255, 0.055);
-
-    --text-dimmed: #a1a1aa;
-    --text-muted: #71717a;
-  }
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -111,6 +104,36 @@ body {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   Theme toggle
+   Icon choice is pure CSS so the right glyph is painted before hydration —
+   a JS-derived icon would either mismatch on hydration or pop in after it.
+   --------------------------------------------------------------------------- */
+
+.theme-icon-moon {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-icon-sun {
+  display: none;
+}
+
+:root[data-theme="dark"] .theme-icon-moon {
+  display: block;
+}
+
+/* No JS: the inline script never ran, so no attribute exists — mirror the
+   `color-scheme: light dark` fallback the tokens use. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .theme-icon-sun {
+    display: none;
+  }
+
+  :root:not([data-theme]) .theme-icon-moon {
+    display: block;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -252,15 +275,11 @@ body {
   }
 }
 
-/* Shiki dual themes: token colours come from the spans, surface from our tokens. */
+/* Shiki dual themes: token colours come from the spans, surface from our tokens.
+   rehype-pretty-code sets `defaultColor: false`, so no inline `color` competes
+   with this rule. */
 code[data-theme*=" "] span {
-  color: var(--shiki-light);
-}
-
-@media (prefers-color-scheme: dark) {
-  code[data-theme*=" "] span {
-    color: var(--shiki-dark);
-  }
+  color: light-dark(var(--shiki-light), var(--shiki-dark));
 }
 
 /* ---------------------------------------------------------------------------
