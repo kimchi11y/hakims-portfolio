@@ -1,0 +1,227 @@
+This site deploys itself. Every push to `main` builds a Docker image, pushes it to GitHub Container Registry, and restarts the container on my VPS over SSH — but none of that happens unless the typechecker, the linter, 22 unit tests, and 19 browser tests pass first.
+
+That last part is the interesting one. For months the pipeline deployed on every push with nothing in front of it, which meant "*it built*" was the only thing standing between my laptop and production. This post is about closing that gap, and about the two real bugs the new tests found within an hour of existing.
+
+## The pipeline as it started
+
+The whole thing was one workflow file, four steps:
+
+```yaml
+- uses: docker/login-action@v3          # ghcr.io
+- uses: docker/build-push-action@v5     # context: ., tag: ghcr.io/<repo>:latest
+- uses: appleboy/ssh-action@v1.0.3      # stop, rm, run on the VPS
+```
+
+On the VPS itself, deployment is deliberately blunt:
+
+```bash
+docker pull ghcr.io/<repo>:latest
+docker stop portfolio || true
+docker rm portfolio || true
+docker run -d --name portfolio --restart unless-stopped -p 3000:3000 ghcr.io/<repo>:latest
+```
+
+There is no Kubernetes here, no rolling update, no blue/green. One container, replaced wholesale. For a personal site with one replica, that's the right amount of machinery — the `|| true` guards exist because the very first deploy has no container to stop. When the app was a static brochure, this was completely fine.
+
+The problem wasn't the deploy mechanism. It was that nothing ran *before* it.
+
+## What's actually inside the image
+
+The `Dockerfile` is a two-stage build, which is doing most of the work in keeping the shipped image small:
+
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+RUN apk add --no-cache dumb-init
+COPY package*.json ./
+RUN npm ci --only=production
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["npm", "start"]
+```
+
+Three decisions worth calling out:
+
+- **Two stages, two dependency sets.** The builder needs TypeScript, Tailwind, ESLint and Next's compiler. The runtime needs none of them, so the second stage installs with `--only=production` and copies nothing but the build output. The final image never sees the source tree.
+- **`dumb-init` as PID 1.** Without a proper init, the Node process doesn't receive `SIGTERM` correctly, and `docker stop` waits out its full timeout before the kernel kills the container. With it, restarts take milliseconds. This matters a lot when every deploy is a stop-and-start.
+- **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`.** Playwright is a test dependency, but `npm ci` in the *builder* still honours its install script and pulls down ~130 MB of browser binaries — into a stage that gets thrown away. One `ENV` line removes that from every image build.
+
+Two things I'd still change: the container runs as `root`, and there's no `HEALTHCHECK`. Both are on the list below.
+
+## One nginx config, and a caching trick worth understanding
+
+The container publishes on `127.0.0.1:3000` only. Cloudflare terminates TLS at the edge; nginx sits in front of the app and proxies:
+
+```nginx
+location /_next/static/ {
+    proxy_pass $upstream_app;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+}
+
+location / {
+    proxy_pass $upstream_app;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade    $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+}
+```
+
+Caching a year with `immutable` on `/_next/static/` sounds reckless until you remember that Next.js names those files by content hash. A new build writes new filenames; the old ones are simply never requested again. The HTML is *not* given that header, so after a redeploy a browser revalidates the document and picks up the new asset names immediately. That combination is what makes "replace the container" a safe deployment strategy here.
+
+The `Upgrade`/`Connection` pair is there for WebSockets, and `proxy_set_header Host $host` matters because Next uses the forwarded headers to build absolute URLs in metadata.
+
+## Putting a gate in front of the deploy
+
+The fix took the shape of a single workflow with three jobs and an explicit dependency chain:
+
+```
+checks  ──►  e2e  ──►  deploy
+```
+
+- **`checks`** — `tsc --noEmit`, `eslint`, the unit suite, and a full `next build`.
+- **`e2e`** — installs Chromium, builds, and runs Playwright against the **production** server, not `next dev`.
+- **`deploy`** — the original four steps, unchanged, now with `needs: [checks, e2e]` and an `if:` that restricts it to pushes on `main`.
+
+Because they're jobs in one workflow with `needs`, a failing check *skips the deploy entirely*. That's the property I wanted: not a warning banner on a pull request, but literally no path from a broken commit to the VPS. Branch protection (still to be enabled) is the other half — that stops a red PR being merged in the first place.
+
+CI runs on Node 20 to match the image, and the e2e job asserts the production server deliberately: my `playwright.config.ts` switches the server command based on whether `CI` is set.
+
+```ts
+webServer: {
+  command: process.env.CI ? "npm run build && npm run start" : "npm run dev",
+  url: baseURL,
+  reuseExistingServer: !process.env.CI,
+  env: { PORT: "3100" },
+}
+```
+
+Dev mode locally keeps the feedback loop fast. In CI, running against `next start` is what actually catches static-generation mistakes — my blog uses `dynamicParams = false`, so a post whose slug isn't in `generateStaticParams` 404s in production while working perfectly in dev.
+
+## Two runners, on purpose
+
+I used two test runners rather than one, which usually deserves suspicion. The split is about what each layer can honestly verify:
+
+| Layer | Runner | What it covers |
+| --- | --- | --- |
+| Unit and invariants | Vitest (node) | `sortPosts` ordering and purity, date formatting, content metadata, referenced assets existing on disk, sitemap completeness |
+| Browser | Playwright | Theme persistence, the mobile menu's Escape/outside-click/focus behaviour, canvas animation and reduced motion, scroll-linked reading progress, route 404s, link integrity |
+
+The unit suite runs in **179 ms**. That speed is the point: it's the layer I'll actually run on every save, and it covers the class of failure that's invisible in a browser — a post dated wrong, a resume PDF that isn't committed, a sitemap that forgot the blog exists.
+
+What I deliberately *didn't* do is unit-test components with jsdom. The risky behaviour on this site is `IntersectionObserver`, `requestAnimationFrame`, canvas painting, `localStorage` and a pre-paint inline script. jsdom fakes every one of them, so those tests would assert the mock, not the site.
+
+Two details that made the unit layer work at all:
+
+```ts
+// vitest.config.ts — posts are React components at runtime; unit tests only
+// read their metadata, so `.mdx` resolves to an empty stand-in.
+plugins: [{
+  name: "mdx-stub",
+  enforce: "pre",
+  resolveId(source) { if (source.endsWith(".mdx")) return mdxStub; },
+}]
+```
+
+Compiling real MDX through rehype-pretty-code and Shiki in every unit run would cost seconds per file for zero verification value.
+
+```ts
+test: { environment: "node", env: { TZ: "UTC" } }
+```
+
+Pinning the timezone is not cosmetic — it's what makes the next bug reproducible.
+
+## Bug one: the date that was a day early
+
+Post dates are calendar days, not instants. `new Date("2026-09-01")` parses as **UTC midnight**, and `toLocaleDateString()` without an explicit zone formats it in whatever zone the machine happens to be in:
+
+| Host timezone | Rendered |
+| --- | --- |
+| `UTC` | September 1, 2026 |
+| `Asia/Kuala_Lumpur` | September 1, 2026 |
+| `America/Los_Angeles` | **August 31, 2026** |
+
+I'm in Kuala Lumpur, which is UTC+8. The build host is UTC. Both render the right day, which is exactly why this survived: it was correct everywhere I looked. A reader in California — or a future contributor building locally in the US — would have seen every post dated one day early, and nothing in the codebase would have looked wrong.
+
+The fix is one line:
+
+```ts
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric",
+    timeZone: "UTC",
+  });
+}
+```
+
+The test asserts *zone independence* rather than a fixed string, because a fixed string only pins what the CI machine happens to be:
+
+```ts
+process.env.TZ = "UTC";
+expect(ambientDay("2026-09-01")).toBe(1);       // guard
+
+process.env.TZ = "America/Los_Angeles";
+expect(ambientDay("2026-09-01")).toBe(31);      // the switch took effect
+expect(formatDate("2026-09-01")).toBe("September 1, 2026");
+```
+
+That middle line matters more than it looks. If a runtime ever ignored the timezone change, the test would compare a value against itself and pass while verifying nothing. Proving the setup actually does what the test assumes is the difference between a test and a decoration.
+
+## Bug two: a sitemap with one URL in it
+
+The other find was less subtle. `app/sitemap.ts` returned exactly one entry — the bare origin:
+
+```ts
+return [{ url: "https://hakimrazak.com", lastModified: new Date(), priority: 1 }];
+```
+
+No `/blog`. No posts. It had been correct when the site *was* a single page, and nothing ever prompted me to look again. The fix derives the entries from the same `posts` array the listing uses, so a new post appears in the sitemap the moment it appears on the site. The e2e spec now fetches the served `/sitemap.xml` and checks that every path the blog listing links to is advertised in it.
+
+Both bugs share a shape: **the code did what it was written to do, and the site was wrong anyway.** A green build cannot tell you that.
+
+## Proving the tests have teeth
+
+Tests that never fail are documentation with extra steps. So I verified the suite by breaking things on purpose and confirming it noticed:
+
+| Deliberate break | Result |
+| --- | --- |
+| Remove `timeZone: "UTC"` from `formatDate` | Unit suite fails |
+| Drop the post entries from `sitemap.ts` | Unit suite fails |
+| Rename the resume `.docx` | Unit suite fails |
+| Rename a section `id` the nav links to | Anchor test fails |
+| Change the theme toggle's storage key | Persistence test fails |
+
+After each one I restored the file and compared a checksum to be sure I hadn't left the breakage in. It's a five-minute exercise that tells you whether you have a test suite or a security blanket.
+
+## Four things that bit me while wiring this up
+
+**`vitest@5` wants `@types/node >= 22`.** The project pins `@types/node@^20` to match the Node 20 image. Installing vitest 5 meant either lying to the typechecker about the runtime or pinning vitest 3. I pinned vitest 3 — the type definitions should describe the runtime that actually serves traffic.
+
+**Vite's `resolve.alias` doesn't see relative specifiers.** Mapping `.mdx` to a stub via an alias silently did nothing, because Vite short-circuits ids starting with `./` before aliases are consulted. The working version is a plugin with `enforce: "pre"` that intercepts in `resolveId`.
+
+**Playwright's accessible name changes with state.** My mobile menu button is labelled "Open menu" or "Close menu" depending on whether the menu is open. Locating it by role and name meant that after clicking, the locator matched nothing — so the assertion failed for a reason that had nothing to do with the app. Locating it by `aria-controls="mobile-menu"` is stable across both states.
+
+**Test the invariant, not the paint.** I wanted to verify the inline theme script prevents a flash of the wrong theme. Playwright can't easily observe the first painted frame, and screenshot-diffing a theme is a flake generator. What *is* deterministic and worth pinning: a stored choice outranks a contradicting OS preference, an unreadable stored value falls back to the OS, exactly one of the two icon glyphs is visible per theme, and hydration produces no mismatch warnings. Those are the properties the anti-flash script exists to guarantee.
+
+For the canvas animation I took a different tack — hash a sample of the painted pixels twice, 500 ms apart. Motion allowed: the hash changes. Reduced motion: it must be byte-identical, because the run loop is supposed to stop. That's a real behavioural assertion on an opaque canvas without touching its internals.
+
+## What's still on the list
+
+- **Branch protection** on `main` requiring the `checks` and `e2e` jobs, so a red PR can't merge.
+- **`HEALTHCHECK` in the Dockerfile**, and running as a non-root user.
+- **`app/robots.ts` still hardcodes the origin** separately from `app/sitemap.ts`, and `app/layout.tsx` reads `NEXT_PUBLIC_SITE_URL`. Three places, one value, and only one of them is configurable.
+- **A staging container** on a second port, so the new image can be smoke-tested on the VPS before the old one is stopped.
+
+The version of this pipeline I'd have shipped a year ago was the same four steps with no gate, and it would have looked identical right up until the day it deployed a broken build. Adding a test gate isn't about catching the bug you know about — it's about making the rollback unnecessary.
+
+---
+
+*Everything here runs on GitHub's free tier for public repositories and a single DigitalOcean droplet.*
