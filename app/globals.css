@@ -283,6 +283,43 @@ code[data-theme*=" "] span {
 }
 
 /* ---------------------------------------------------------------------------
+   Diagrams — <Flowchart /> renders Mermaid to SVG at build time. These
+   variables map Pele's palette onto the site tokens; `light-dark()` resolves
+   against the inherited `color-scheme`, so a diagram follows the theme toggle
+   without a second copy of the palette and without re-rendering.
+   --------------------------------------------------------------------------- */
+
+.diagram {
+  /* Pele punches edge labels out of their line with this colour, so it has to
+     match the surface the diagram actually sits on. */
+  --pele-bg: var(--background);
+  --pele-fg: var(--foreground);
+  --pele-muted: var(--text-muted);
+  --pele-line: var(--text-muted);
+  --pele-surface: var(--surface-sunken);
+  --pele-surface-alt: var(--surface-hover);
+  --pele-border: var(--border-strong);
+  /* The site palette is monochrome; keep highlights on the same ink. */
+  --pele-accent: var(--foreground);
+  --pele-font: var(--font-inter), sans-serif;
+  --pele-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  margin: 2rem 0;
+}
+
+.diagram-frame {
+  display: flex;
+  justify-content: center;
+}
+
+.diagram-caption {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
    Reduced motion — fewer and gentler, never zero. Movement is dropped;
    opacity and colour transitions that aid comprehension are kept.
    --------------------------------------------------------------------------- */
