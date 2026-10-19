@@ -15,11 +15,15 @@ export interface Post {
   Component: ComponentType<MDXProps>;
 }
 
+/** Post dates are calendar days, not instants. `new Date("2026-09-01")` parses
+ *  as UTC midnight, so the zone has to be pinned or a viewer west of UTC sees
+ *  the previous day. */
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "UTC",
   });
 }
 
