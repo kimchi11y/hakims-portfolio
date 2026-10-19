@@ -3,6 +3,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# The image never runs Playwright; only the test runner does. Without this,
+# `npm ci` pulls ~130MB of browsers into a stage that is thrown away.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
 # Copy package files
 COPY package*.json ./
 

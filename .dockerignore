@@ -10,6 +10,11 @@ npm-debug.log
 .eslintignore
 .prettierignore
 coverage
+playwright-report
+test-results
+tests
+vitest.config.ts
+playwright.config.ts
 .vscode
 .idea
 .playwright
