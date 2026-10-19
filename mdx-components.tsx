@@ -1,7 +1,9 @@
 import type { MDXComponents } from "mdx/types";
 import { CodeBlock } from "./components/code-block";
+import { Flowchart } from "./components/flowchart";
 
 const components: MDXComponents = {
+  Flowchart,
   h1: ({ children }) => (
     <h1 className="text-3xl md:text-4xl font-bold tracking-tight mt-10 mb-5">
       {children}

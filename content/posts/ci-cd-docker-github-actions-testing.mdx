@@ -83,9 +83,20 @@ The `Upgrade`/`Connection` pair is there for WebSockets, and `proxy_set_header H
 
 The fix took the shape of a single workflow with three jobs and an explicit dependency chain:
 
-```
-checks  ──►  e2e  ──►  deploy
-```
+<Flowchart
+  label="Flowchart of the CI pipeline: a push or pull request runs checks, then the Playwright suite, then on main only the image build, the VPS deploy, and the live site. A failure at any stage skips the deploy."
+  caption="Three jobs, one dependency chain. Every failure path ends in the same place."
+  source={`flowchart TD
+  P[push or pull request] --> C[checks: typecheck, lint,<br/>unit tests, build]
+  C --> E[e2e: Playwright against<br/>next start]
+  E --> M{on main?}
+  M -- yes --> B[build and push image<br/>to ghcr.io]
+  B --> D[ssh to VPS:<br/>pull, stop, rm, run]
+  D --> L([live])
+  C -- fail --> S[deploy skipped]
+  E -- fail --> S
+  M -- no --> S`}
+/>
 
 - **`checks`** — `tsc --noEmit`, `eslint`, the unit suite, and a full `next build`.
 - **`e2e`** — installs Chromium, builds, and runs Playwright against the **production** server, not `next dev`.
