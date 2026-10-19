@@ -59,6 +59,32 @@ test("404s an unknown slug", async ({ page }) => {
   expect(response?.status()).toBe(404);
 });
 
+test("reveals every post body without waiting for a scroll", async ({
+  page,
+}) => {
+  // The whole article sits inside a <Reveal>, so a broken observer would serve
+  // a blank page while the assertions above still pass — `count()` and
+  // `toBeVisible()` both ignore `opacity: 0`.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/blog");
+  const hrefs = await listedPostHrefs(page);
+
+  for (const href of hrefs) {
+    await page.goto(href);
+    await expect
+      .poll(
+        () => page.locator("article .reveal:not([data-revealed])").count(),
+        {
+          message: `${href} kept its body hidden`,
+          /* A post with many code blocks takes a while to compile and hydrate
+             on the dev server; in CI this settles in well under a frame. */
+          timeout: 20_000,
+        },
+      )
+      .toBe(0);
+  }
+});
+
 test("previews the newest posts on the home page", async ({ page }) => {
   await page.goto("/blog");
   const listed = await listedPostHrefs(page);

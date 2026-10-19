@@ -1,7 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 3100;
-const baseURL = `http://127.0.0.1:${PORT}`;
+/* `localhost`, not `127.0.0.1`: Next's dev server blocks cross-origin requests
+   to its HMR endpoint by default, and the two spellings are different origins. */
+const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: "tests/e2e",

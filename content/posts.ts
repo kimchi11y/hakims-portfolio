@@ -1,8 +1,20 @@
 import type { Post } from "@/lib/posts";
 import HomelabPost from "./posts/homelab-journey.mdx";
 import WelcomePost from "./posts/welcome-to-my-blog.mdx";
+import CicdPost from "./posts/ci-cd-docker-github-actions-testing.mdx";
 
 const entries: Post[] = [
+  {
+    slug: "ci-cd-docker-github-actions-testing",
+    meta: {
+      title: "From Push to Production: Docker, GitHub Actions, and a Test Gate",
+      date: "2026-10-19",
+      description:
+        "How this site deploys itself from a push to main — a two-stage Docker image, GitHub Actions shipping to a VPS over SSH, and the test suite I put in front of it, including the two production bugs it found in the first hour.",
+      tags: ["CI/CD", "Docker", "GitHub Actions", "Testing", "Next.js", "Playwright"],
+    },
+    Component: CicdPost,
+  },
   {
     slug: "welcome-to-my-blog",
     meta: {
