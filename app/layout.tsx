@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -91,6 +92,13 @@ export default function RootLayout({
             {children}
           </div>
         </div>
+        {/* ASCII Magic runtime: one module for the whole site. It upgrades the
+            <ascii-art> elements and loads only the piece they name. */}
+        <Script
+          type="module"
+          src="https://www.ascii-magic.com/ascii/ascii.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

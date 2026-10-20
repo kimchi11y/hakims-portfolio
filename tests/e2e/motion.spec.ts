@@ -1,8 +1,22 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Cheap fingerprint of what is actually painted on the starfield canvas. */
+/** Cheap fingerprint of what is actually painted on the nebula banner canvas. */
 function canvasHash(): number {
-  const canvas = document.querySelector("canvas");
+  /* The ASCII element draws inside an open shadow root, so a document-wide
+     query would miss its canvas. */
+  const findCanvas = (root: Document | ShadowRoot): HTMLCanvasElement | null => {
+    const direct = root.querySelector("canvas");
+    if (direct) return direct;
+    for (const element of root.querySelectorAll("*")) {
+      if (element.shadowRoot) {
+        const found = findCanvas(element.shadowRoot);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const canvas = findCanvas(document);
   if (!canvas) return -1;
   if (canvas.width === 0 || canvas.height === 0) return -1;
 
@@ -24,7 +38,7 @@ function readingProgressScale(page: Page) {
   });
 }
 
-test("animates the starfield while motion is allowed", async ({ page }) => {
+test("animates the nebula banner while motion is allowed", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/");
   await expect(page.locator("canvas").first()).toBeVisible();
@@ -33,11 +47,11 @@ test("animates the starfield while motion is allowed", async ({ page }) => {
   await page.waitForTimeout(500);
   const second = await page.evaluate(canvasHash);
 
-  expect(first, "the starfield painted nothing").not.toBe(-1);
+  expect(first, "the nebula banner painted nothing").not.toBe(-1);
   expect(second, "a rotating field should not repeat a frame").not.toBe(first);
 });
 
-test("freezes the starfield under reduced motion", async ({ page }) => {
+test("freezes the nebula banner under reduced motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(page.locator("canvas").first()).toBeVisible();
@@ -46,7 +60,7 @@ test("freezes the starfield under reduced motion", async ({ page }) => {
   await page.waitForTimeout(500);
   const second = await page.evaluate(canvasHash);
 
-  expect(first, "the starfield painted nothing").not.toBe(-1);
+  expect(first, "the nebula banner painted nothing").not.toBe(-1);
   expect(second, "reduced motion must stop the run loop").toBe(first);
 });
 

@@ -348,3 +348,22 @@ code[data-theme*=" "] span {
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   ASCII Magic banner
+   The element owns a shadow-DOM canvas sized in px from --ascii-size. The host
+   is forced to the banner box and centers the taller art, so the piece fills
+   the width and is cropped to the banner height instead of letterboxing.
+   --------------------------------------------------------------------------- */
+
+.nebula-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* 100 columns × 0.602 em = 60.2 em wide. Keep the piece edge-to-edge at
+     every container width without letting it overflow on phones. */
+  --ascii-size: min(12.2px, 1.5vw) !important;
+}

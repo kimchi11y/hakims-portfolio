@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Starfield } from "@/components/starfield";
+
 import { personalData } from "@/lib/data";
 import { ResumeLink, ResumeDownloadLink } from "./resume-link";
 import { Reveal } from "./reveal";
@@ -7,20 +7,17 @@ import { Reveal } from "./reveal";
 export function Hero() {
   return (
     <section className="pt-8 pb-12">
-      {/* Banner + avatar */}
+      {/* Decorative: animated ASCII nebula. Sized by the CSS font-size;
+          the fixed-height frame crops the tall piece to a banner. */}
       <Reveal>
-        <div className="relative">
-          <div className="w-full h-[180px] sm:h-[240px] md:h-[286px] rounded-2xl overflow-hidden relative bg-background">
-            <Starfield className="absolute inset-0" />
-          </div>
-
-          {/* Monogram avatar */}
-          <div className="flex justify-start relative z-10 -mt-[50px] ml-4">
-            <div className="w-[92px] h-[92px] rounded-full bg-[var(--foreground)] border-[6px] border-[var(--background)] overflow-hidden flex items-center justify-center text-3xl font-bold tracking-tight text-[var(--background)]">
-              {personalData.name.first.charAt(0)}
-              {personalData.name.last.charAt(0)}
-            </div>
-          </div>
+        <div className="w-full h-[180px] sm:h-[240px] md:h-[286px] rounded-2xl overflow-hidden relative bg-background">
+          <ascii-art
+            piece="nebula-drift"
+            look="binary"
+            bg="#040406"
+            size="12"
+            className="nebula-art absolute inset-0"
+          ></ascii-art>
         </div>
       </Reveal>
 
