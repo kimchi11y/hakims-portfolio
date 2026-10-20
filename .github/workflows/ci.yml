@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -105,11 +106,40 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            docker pull ghcr.io/${{ github.repository }}:latest
+            set -euo pipefail
+            IMAGE=ghcr.io/${{ github.repository }}:latest
+
+            # The VPS filled its Docker content store, so `docker pull` failed
+            # halfway and the old image kept running. Reclaim unused layers
+            # before pulling, and retry once with the old container stopped.
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+            df -h / || true
+            docker system df || true
+
+            if ! docker pull "$IMAGE"; then
+              docker stop portfolio || true
+              docker rm portfolio || true
+              docker image prune -af || true
+              docker builder prune -af || true
+              docker pull "$IMAGE"
+            fi
+
             docker stop portfolio || true
             docker rm portfolio || true
             docker run -d \
               --name portfolio \
               --restart unless-stopped \
               -p 3000:3000 \
-              ghcr.io/${{ github.repository }}:latest
+              "$IMAGE"
+
+            # Fail the job if the container is not running the just-pulled image;
+            # silently rolling back to a cached image is how the site went stale.
+            EXPECTED=$(docker image inspect "$IMAGE" --format '{{.Id}}')
+            RUNNING=$(docker inspect --format '{{.Image}}' portfolio)
+            if [ "$EXPECTED" != "$RUNNING" ]; then
+              echo "deployed container does not match $IMAGE"
+              exit 1
+            fi
+            docker ps --filter name=portfolio
