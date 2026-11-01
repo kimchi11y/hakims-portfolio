@@ -2,8 +2,20 @@ import type { Post } from "@/lib/posts";
 import HomelabPost from "./posts/homelab-journey.mdx";
 import WelcomePost from "./posts/welcome-to-my-blog.mdx";
 import CicdPost from "./posts/ci-cd-docker-github-actions-testing.mdx";
+import SilentDeployPost from "./posts/silent-deploy-full-disk.mdx";
 
 const entries: Post[] = [
+  {
+    slug: "silent-deploy-full-disk",
+    meta: {
+      title: "The Deploy That Said Success While Serving the Old Site",
+      date: "2026-10-20",
+      description:
+        "A green GitHub Actions deploy silently served an old container because the VPS disk was full. How the failure worked, the fix that verifies the running image, and the checks that keep it loud next time.",
+      tags: ["Docker", "CI/CD", "GitHub Actions", "DevOps", "Debugging", "VPS"],
+    },
+    Component: SilentDeployPost,
+  },
   {
     slug: "ci-cd-docker-github-actions-testing",
     meta: {

@@ -1,0 +1,175 @@
+I merged the PR, watched every check turn green, and refreshed the site. Same old banner. The deploy job said **success**.
+
+It wasn't browser or CDN caching, and it wasn't the Node 20 deprecation warnings GitHub had printed. The pipeline had shipped the previous container and reported a win. This is the story of how a full disk, a shell script without `set -e`, and a cached Docker tag combined into a deploy that lied — and what I changed so it can't lie quietly again.
+
+## The symptom
+
+The change was easy to verify locally: the hero should contain an `<ascii-art>` element and load the ASCII Magic runtime. The live HTML contained neither. It still had the old `<canvas>` and the monogram markup:
+
+```bash
+curl -s https://hakimrazak.com/ | grep -o 'ascii-art\|<canvas'
+# <canvas>
+# <canvas>
+```
+
+So the build was fine — production was simply running an older image. The first place to look was the deploy job, and the log had the answer buried in the middle:
+
+```text
+out: latest: Pulling from kimchi11y/hakims-portfolio
+...
+err: failed to copy: ... no space left on device
+...
+out: portfolio
+out: portfolio
+out: a9c5ab4d9363...
+✅ Successfully executed commands to all host.
+```
+
+The pull failed. The script kept going anyway.
+
+## How the old deploy worked
+
+The remote script was four commands:
+
+```bash
+docker pull ghcr.io/kimchi11y/hakims-portfolio:latest
+docker stop portfolio || true
+docker rm portfolio || true
+docker run -d \
+  --name portfolio \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  ghcr.io/kimchi11y/hakims-portfolio:latest
+```
+
+It is intentionally boring, and for a single-container personal site that is usually the right call. But it has two properties that only matter on a bad day:
+
+1. **No `set -e`.** If `docker pull` fails, the next commands still run.
+2. **`:latest` is a mutable tag.** If the pull fails, the tag still resolves to whatever image is already cached on the VPS.
+
+Combine them: the pull fails, the script removes the running container, and `docker run ...:latest` starts the **old cached image**. Every command exits successfully, so the SSH action returns zero and GitHub paints the job green.
+
+<Flowchart
+  label="Flowchart of the silent failure: a merge triggers a pull, the pull fails because the disk is full, the old image remains cached, the script stops and removes the container, then runs the same latest tag, ending in a green job and a stale site."
+  caption="The dangerous path: the pull failure was not the last command, so it never failed the job."
+  source={`flowchart TD
+  A[merge to main] --> B[pull latest]
+  B -- disk full --> C[old image stays cached]
+  C --> D[stop and remove container]
+  D --> E[run latest tag]
+  E --> F([green job / stale site])`}
+/>
+
+## Why the disk was full
+
+The VPS has a 24 GB disk. Docker was not doing anything unusual — it was doing what Docker does when nobody cleans up after it. Every rollout pulled a new `1.27 GB` image, untagged the previous one, and left its layers behind. Add a stopped container here, a build cache there, and a journal that had grown to `1.5 GB`, and the content store hit zero.
+
+The failure surfaced at the worst moment: in the middle of writing image layers. The pull aborted, but the tag never moved.
+
+When I audited the box afterwards, the numbers were clear:
+
+| Consumer | Size |
+|---|---:|
+| `/root/.hermes` (agent tooling) | 3.0 GB |
+| `/usr` (operating system) | 2.2 GB |
+| `/swapfile` | 2.0 GB |
+| Docker images (current app + dashboard) | 1.6 GB |
+| `/root/.npm` cache | 760 MB |
+| Journal logs | 1.5 GB before vacuum |
+
+None of that is alarming for a 24 GB droplet. The alarming part was the *unused* image and the logs, not the app.
+
+## The fix
+
+The deploy script now fails loudly, cleans before it pulls, and — most importantly — verifies what is actually running.
+
+```bash
+set -euo pipefail
+IMAGE=ghcr.io/kimchi11y/hakims-portfolio:latest
+
+# Reclaim layers from previous deploys before pulling.
+docker container prune -f || true
+docker image prune -af || true
+docker builder prune -af || true
+
+# If the pull still fails, make room by stopping the old container and retry.
+if ! docker pull "$IMAGE"; then
+  docker stop portfolio || true
+  docker rm portfolio || true
+  docker image prune -af || true
+  docker builder prune -af || true
+  docker pull "$IMAGE"
+fi
+
+docker stop portfolio || true
+docker rm portfolio || true
+docker run -d \
+  --name portfolio \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  "$IMAGE"
+
+# The job's exit code is not proof. Compare the running image to the pulled one.
+EXPECTED=$(docker image inspect "$IMAGE" --format '{{.Id}}')
+RUNNING=$(docker inspect --format '{{.Image}}' portfolio)
+if [ "$EXPECTED" != "$RUNNING" ]; then
+  echo "deployed container does not match $IMAGE"
+  exit 1
+fi
+```
+
+Three changes matter:
+
+- **`set -euo pipefail`** turns a failed pull into a failed job instead of a warning nobody reads.
+- **Clean, then retry.** Pruning first usually makes room. If it doesn't, the script stops the old container, prunes again, and retries once — accepting a short outage instead of silently rolling back.
+- **Assert the artifact.** The final check compares the container's image ID with the image the job just pulled. A stale container can no longer pass as a successful deploy.
+
+I also added `workflow_dispatch`, so a deploy can be re-run from the Actions tab without an empty commit.
+
+The fixed path looks like this:
+
+<Flowchart
+  label="Flowchart of the fixed deploy: pull the image, check whether it succeeded, if not stop the old container and prune then retry, run the new image, then compare the running image id with the pulled image id and fail if they differ."
+  caption="Pull, clean if needed, run, then verify the image the container is actually using."
+  source={`flowchart TD
+  A[pull image] --> B{pull ok?}
+  B -- yes --> C[run new image]
+  B -- no --> D[prune and retry]
+  D --> C
+  C --> E{ids match?}
+  E -- yes --> F([deployed])
+  E -- no --> G([job fails])`}
+/>
+
+## Cleaning up the VPS
+
+The fix prevents the script from lying, but the disk still needed attention. I removed the dangling image (`1.06 GB`) and vacuumed the journal (`1.0 GB`), then capped journald so it cannot quietly grow back to 1.5 GB:
+
+```bash
+docker image prune -f
+journalctl --vacuum-size=400M
+
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=400M\n' > /etc/systemd/journald.conf.d/size.conf
+systemctl restart systemd-journald
+```
+
+Result: **11 GB used, 13 GB free**. No upgrade required. The disk was not too small; it was unmanaged.
+
+## Preventing the next one
+
+The postmortem checklist I'm keeping:
+
+- **Remote scripts fail fast.** `set -euo pipefail` in every SSH deploy script, not just the CI wrapper.
+- **Never stop the old container before the new image is available.** Prefer pull → stop → run; fall back to stop/prune/retry only when space forces it.
+- **Verify the artifact, not the job status.** Compare image IDs, hit the health endpoint, or assert a marker in the rendered HTML. A green check means "the shell returned 0", nothing more.
+- **Prune on a schedule, not only on deploys.** Pruning before a pull fixes today; pruning after a deploy keeps the box from carrying a spare image between releases.
+- **Cap log growth.** Container logs (`--log-opt max-size=10m --log-opt max-file=3`) and journald (`SystemMaxUse`) both need a ceiling.
+- **Alert on disk free.** A `df` threshold at 15–20% would have caught this days before the deploy.
+- **Keep a manual redeploy path.** `workflow_dispatch` made recovery a button instead of an empty commit.
+
+## Green is not deployed
+
+The uncomfortable lesson is that CI's success signal stops at the edge of the pipeline. It proves the build ran, tests passed, and the SSH command returned zero. It does not prove the VPS is serving the new bytes. Those are different claims, and only one of them was true.
+
+A deploy is not finished when the job turns green. It is finished when the running artifact matches the one you built — and the site proves it.
