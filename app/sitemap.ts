@@ -1,4 +1,7 @@
 import type { MetadataRoute } from "next";
+
+// `output: "export"` only emits metadata routes that are explicitly static.
+export const dynamic = "force-static";
 import { posts } from "@/content/posts";
 
 const SITE_URL = "https://hakimrazak.com";
