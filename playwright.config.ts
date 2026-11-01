@@ -17,9 +17,12 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    /* CI asserts the shipped artifact (static params, Shiki highlighting);
+    /* CI asserts the shipped artifact (static export served by the same
+       Workers assets engine as production, so 404s and clean URLs match);
        locally the dev server keeps the loop fast. */
-    command: process.env.CI ? "npm run build && npm run start" : "npm run dev",
+    command: process.env.CI
+      ? `npm run build && npx wrangler dev --port ${PORT}`
+      : "npm run dev",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

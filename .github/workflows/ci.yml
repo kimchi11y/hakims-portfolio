@@ -18,11 +18,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Matches the runtime in the Dockerfile, not the maintainer's laptop.
+      # Wrangler requires Node 22+.
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -51,7 +51,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -60,7 +60,8 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      # `CI` makes Playwright assert the production server, not `next dev`.
+      # `CI` makes Playwright assert the static export under `wrangler dev`,
+      # not `next dev`.
       - name: Run Playwright
         run: npm run test:e2e
         env:
@@ -76,70 +77,3 @@ jobs:
             test-results/
           retention-days: 7
 
-  deploy:
-    name: Build image and deploy
-    needs: [ checks, e2e ]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/${{ github.repository }}:latest
-
-      - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -euo pipefail
-            IMAGE=ghcr.io/${{ github.repository }}:latest
-
-            # The VPS filled its Docker content store, so `docker pull` failed
-            # halfway and the old image kept running. Reclaim unused layers
-            # before pulling, and retry once with the old container stopped.
-            docker container prune -f || true
-            docker image prune -af || true
-            docker builder prune -af || true
-            df -h / || true
-            docker system df || true
-
-            if ! docker pull "$IMAGE"; then
-              docker stop portfolio || true
-              docker rm portfolio || true
-              docker image prune -af || true
-              docker builder prune -af || true
-              docker pull "$IMAGE"
-            fi
-
-            docker stop portfolio || true
-            docker rm portfolio || true
-            docker run -d \
-              --name portfolio \
-              --restart unless-stopped \
-              -p 3000:3000 \
-              "$IMAGE"
-
-            # Fail the job if the container is not running the just-pulled image;
-            # silently rolling back to a cached image is how the site went stale.
-            EXPECTED=$(docker image inspect "$IMAGE" --format '{{.Id}}')
-            RUNNING=$(docker inspect --format '{{.Image}}' portfolio)
-            if [ "$EXPECTED" != "$RUNNING" ]; then
-              echo "deployed container does not match $IMAGE"
-              exit 1
-            fi
-            docker ps --filter name=portfolio
