@@ -73,11 +73,11 @@ export const personalData: PersonalData = {
 export const projectsData: Project[] = [
   {
     id: 3,
-    title: "Family Atlas",
+    title: "Places We've Been",
     description:
       "Built a private family travel scrapbook: an interactive 3D globe of every trip with journals, photo walls and vlogs. Runs as a Cloudflare Worker on D1 and R2, with an admin trip editor that strips photo GPS data in the browser and Cloudflare Access sign-in limiting the site to family.",
-    link: "https://github.com/kimchi11y/family-atlas",
-    images: ["/family-atlas.png"],
+    link: "https://places-weve-been-site.abdulhakim0401.workers.dev/",
+    images: ["/places-weve-been.png"],
     tags: ["Astro", "React", "TypeScript", "D3", "Drizzle ORM", "Cloudflare Workers"],
   },
   {
